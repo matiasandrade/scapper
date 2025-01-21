@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import base64
 import os
 import shutil
 import subprocess
@@ -7,7 +6,7 @@ import sys
 import tempfile
 import termios
 import tty
-from typing import Optional
+from typing import Optional, List, Tuple, Union
 
 # Check arguments
 if len(sys.argv) < 2:
@@ -16,10 +15,10 @@ if len(sys.argv) < 2:
 
 video_path = sys.argv[1]
 current_frame = 0
-saved_frames = []
-all_frames = []
+saved_frames: List[str] = []
+all_frames: List[str] = []
 
-def get_duration():
+def get_duration() -> float:
     cmd = [
         "ffprobe",
         "-v",
@@ -33,11 +32,11 @@ def get_duration():
     try:
         duration = float(subprocess.check_output(cmd).decode().strip())
         return duration
-    except:
+    except Exception as _:
         print("Error getting video duration")
         sys.exit(1)
 
-def get_framerate():
+def get_framerate() -> float:
     cmd = [
         "ffprobe",
         "-v",
@@ -59,12 +58,12 @@ def get_framerate():
             return num / den
         except ValueError:  # Handle non-fractional framerates
             return float(framerate)
-    except:
+    except Exception as _:
         print("Error getting video framerate")
         return 30.0  # Return default framerate instead of exiting
 
 
-def get_frame(timestamp):
+def get_frame(timestamp: float) -> Optional[bytes]:
     # Added -accurate_seek to prevent frame interpolation issues
     ffmpeg_cmd = [
         "ffmpeg",
@@ -87,7 +86,7 @@ def get_frame(timestamp):
         print("Error extracting frame")
         sys.exit(1)
 
-def extract_all_frames():
+def extract_all_frames() -> Tuple[str, List[str]]:
     temp_dir = tempfile.mkdtemp()
     # Extract all frames without duplicates and ensure correct order
     ffmpeg_cmd = [
@@ -119,7 +118,7 @@ def extract_all_frames():
         sys.exit(1)
 
 
-def display_frame(frame_data):
+def display_frame(frame_data: Union[bytes, str]) -> None:
     try:
         if isinstance(frame_data, bytes):
             viu_process = subprocess.Popen(["viu", "-"], stdin=subprocess.PIPE)
@@ -131,19 +130,19 @@ def display_frame(frame_data):
         sys.exit(1)
 
 
-def save_frame(frame_data, timestamp):
+def save_frame(frame_data: Union[bytes, str], timestamp: float) -> None:
     if isinstance(frame_data, bytes):
         filename = f"frame_{timestamp:.3f}.png"
         with open(filename, "wb") as f:
             f.write(frame_data)
     else:
         filename = f"frame_{timestamp:.3f}.png"
-        shutil.copy2(frame_data, filename)
+        shutil.copy2(frame_data, filename) # type: ignore
     saved_frames.append(filename)
     print(f"Saved {filename}")
 
 
-def getch():
+def getch() -> str:
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
@@ -211,8 +210,12 @@ else:
 
     while True:
         frame = get_frame(current_time)
-        display_frame(frame)
+        if frame is None:
+            print("\nError: Could not get frame")
+            break
+
         print(f"\nCurrent timestamp: {current_time:.3f}s")
+        display_frame(frame)
 
         ch = getch()
         if ch == "q":
