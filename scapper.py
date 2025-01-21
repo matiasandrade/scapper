@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-import sys
-import subprocess
 import base64
 import os
-from typing import Optional
-import tty
-import termios
+import shutil
+import subprocess
 import sys
 import tempfile
-import shutil
+import termios
+import tty
+from typing import Optional
 
 # Check arguments
 if len(sys.argv) < 2:
